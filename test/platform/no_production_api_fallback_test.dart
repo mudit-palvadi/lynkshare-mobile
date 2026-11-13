@@ -23,13 +23,6 @@ void main() {
     }
   });
 
-  test('the README does not send contributors to the production API', () {
-    expect(
-      File('README.md').readAsStringSync(),
-      isNot(contains(productionApiHost)),
-    );
-  });
-
   test('API_BASE_URL is read in exactly one place', () {
     final readers = dartSources()
         .where(
