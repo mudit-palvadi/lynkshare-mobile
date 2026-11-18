@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
+import 'package:client/core/crypto/file_cipher_v2.dart';
 import 'package:encrypt/encrypt.dart' as enc;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -34,7 +35,8 @@ class DecryptFileUseCase {
     required String outputPath,
   }) async {
     final encPath = encryptedFile.path;
-    final keyStr = _requireKey(aesKey32Bytes);
+    final isV2 = FileCipherV2.isV2(aesKey32Bytes);
+    final keyStr = isV2 ? '' : _requireKey(aesKey32Bytes);
 
     await Isolate.run(() async {
       final inFile = File(encPath);
@@ -44,6 +46,13 @@ class DecryptFileUseCase {
       }
 
       try {
+        if (isV2) {
+          final packed = await inFile.readAsBytes();
+          final plaintext = FileCipherV2.decrypt(packed, aesKey32Bytes);
+          await outFile.writeAsBytes(plaintext, flush: true);
+          return;
+        }
+
         final key = enc.Key.fromUtf8(keyStr);
         final encrypterStandard = enc.Encrypter(
           enc.AES(key, mode: enc.AESMode.cbc, padding: 'PKCS7'),
@@ -137,6 +146,9 @@ class DecryptFileUseCase {
     required Uint8List encryptedBytes,
     required String aesKey32Bytes,
   }) {
+    if (FileCipherV2.isV2(aesKey32Bytes)) {
+      return FileCipherV2.decrypt(encryptedBytes, aesKey32Bytes);
+    }
     if (encryptedBytes.length < 16) {
       throw const FormatException(
         'Encrypted bytes payload is truncated or invalid',
