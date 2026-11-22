@@ -545,6 +545,8 @@ class DownloadNotifier extends _$DownloadNotifier {
     }
 
     final decryptedPaths = <String>[];
+    final pendingFiles = <ReceivedFile>[];
+    final receivedIndexes = <int>{};
     Directory? saveDir;
     try {
       saveDir = await _stagingDirectory();
@@ -623,38 +625,49 @@ class DownloadNotifier extends _$DownloadNotifier {
         }
       }
 
-      sub = receiver.onFileReceived.listen((received) async {
-        if (!isCurrent() || outcome.isCompleted) return;
-        directStarted = true;
-        readinessTimer?.cancel();
+      var draining = false;
+
+      Future<void> handleReceived(ReceivedFile current) async {
+        if (current.hasIndex && !receivedIndexes.add(current.index)) {
+          await _discardStaging(current.file.path);
+          try {
+            await receiver.confirmFile(current.index);
+          } catch (_) {}
+          return;
+        }
         try {
           // The name came straight from the peer, with no server in the
           // middle to vouch for it.
-          final safeName = FileNameSanitizer.safeFileName(received.name);
+          final safeName = FileNameSanitizer.safeFileName(current.name);
           final savePath = '${saveDir!.path}/$generation-$safeName';
           await ref
               .read(decryptFileUseCaseProvider)
               .execute(
-                encryptedFile: received.file,
+                encryptedFile: current.file,
                 aesKey32Bytes: key,
                 outputPath: savePath,
               );
           if (!isCurrent() || outcome.isCompleted) {
             await _discardStaging(savePath);
-            await _discardStaging(received.file.path);
+            await _discardStaging(current.file.path);
             return;
           }
-          await received.file.delete();
+          await current.file.delete();
           if (!isCurrent() || outcome.isCompleted) {
             await _discardStaging(savePath);
             return;
           }
           final delivered = await _deliverToUser(savePath, safeName);
           if (!isCurrent() || outcome.isCompleted) return;
+          try {
+            await receiver.confirmFile(current.index);
+          } catch (_) {
+            // A lost ack only prevents resume; the file is already saved.
+          }
           decryptedPaths.add(delivered);
           receivedNames.add(safeName);
           filesDone++;
-          deliveredBytes += received.expectedSize;
+          deliveredBytes += current.expectedSize;
           state = state.copyWith(
             currentFileIndex: filesDone - 1,
             currentFileProgress: 1.0,
@@ -662,8 +675,32 @@ class DownloadNotifier extends _$DownloadNotifier {
           );
           completeWhenDelivered();
         } catch (_) {
+          await _discardStaging(current.file.path);
           if (!outcome.isCompleted) outcome.complete(false);
         }
+      }
+
+      Future<void> drainReceived() async {
+        if (draining) return;
+        draining = true;
+        try {
+          while (pendingFiles.isNotEmpty && isCurrent() && !outcome.isCompleted) {
+            await handleReceived(pendingFiles.removeAt(0));
+          }
+        } finally {
+          draining = false;
+        }
+      }
+
+      sub = receiver.onFileReceived.listen((received) {
+        if (!isCurrent() || outcome.isCompleted) {
+          unawaited(_discardStaging(received.file.path));
+          return;
+        }
+        directStarted = true;
+        readinessTimer?.cancel();
+        pendingFiles.add(received);
+        unawaited(drainReceived());
       });
 
       unawaited(
@@ -685,6 +722,7 @@ class DownloadNotifier extends _$DownloadNotifier {
         phase: DownloadPhase.completed,
         overallProgress: 1.0,
         downloadedPaths: decryptedPaths,
+        direct: true,
       );
       ref
           .read(recentTransfersProvider.notifier)
@@ -706,6 +744,10 @@ class DownloadNotifier extends _$DownloadNotifier {
       active = false;
       readinessTimer?.cancel();
       await sub?.cancel();
+      for (final pending in pendingFiles) {
+        await _discardStaging(pending.file.path);
+      }
+      pendingFiles.clear();
       if (identical(_cancelP2PReceive, fallBack)) _cancelP2PReceive = null;
       await session?.dispose();
     }

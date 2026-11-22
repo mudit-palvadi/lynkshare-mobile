@@ -45,7 +45,7 @@ class TransferRepositoryImpl implements TransferRepository {
         ),
       );
     } catch (e) {
-      return Result.failure(ServerFailure(e.toString()));
+      return Result.failure(ServerFailure('Something went wrong. Try again.'));
     }
   }
 
@@ -63,7 +63,7 @@ class TransferRepositoryImpl implements TransferRepository {
       );
       return Result.success(null);
     } catch (e) {
-      return Result.failure(ServerFailure(e.toString()));
+      return Result.failure(ServerFailure('Something went wrong. Try again.'));
     }
   }
 
@@ -86,7 +86,7 @@ class TransferRepositoryImpl implements TransferRepository {
         ),
       );
     } catch (e) {
-      return Result.failure(ServerFailure(e.toString()));
+      return Result.failure(ServerFailure('Something went wrong. Try again.'));
     }
   }
 
@@ -111,7 +111,7 @@ class TransferRepositoryImpl implements TransferRepository {
         ),
       );
     } catch (e) {
-      return Result.failure(ServerFailure(e.toString()));
+      return Result.failure(ServerFailure('Something went wrong. Try again.'));
     }
   }
 
@@ -134,7 +134,7 @@ class TransferRepositoryImpl implements TransferRepository {
         ),
       );
     } catch (e) {
-      return Result.failure(ServerFailure(e.toString()));
+      return Result.failure(ServerFailure('Something went wrong. Try again.'));
     }
   }
 
@@ -157,7 +157,7 @@ class TransferRepositoryImpl implements TransferRepository {
         ),
       );
     } catch (e) {
-      return Result.failure(ServerFailure(e.toString()));
+      return Result.failure(ServerFailure('Something went wrong. Try again.'));
     }
   }
 }

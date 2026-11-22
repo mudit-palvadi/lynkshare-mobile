@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dio/dio.dart';
+import 'package:client/core/errors/failures.dart';
 import 'package:client/features/file_receive/data/datasources/receiver_remote_data_source.dart';
 import 'package:client/features/file_receive/data/models/receiver_session_model.dart';
 import 'package:client/features/file_receive/data/repositories/receiver_repository_impl.dart';
@@ -7,6 +8,7 @@ import 'package:client/features/file_receive/domain/entities/receiver_session.da
 
 class MockReceiverRemoteDataSource implements ReceiverRemoteDataSource {
   bool shouldThrowDioException = false;
+  int? dioStatus;
   String? capturedWrappedKey;
 
   @override
@@ -45,7 +47,15 @@ class MockReceiverRemoteDataSource implements ReceiverRemoteDataSource {
     String? wrappedKey,
   }) async {
     if (shouldThrowDioException) {
-      throw DioException(requestOptions: RequestOptions(path: '/attach'));
+      throw DioException(
+        requestOptions: RequestOptions(path: '/attach'),
+        response: dioStatus == null
+            ? null
+            : Response(
+                requestOptions: RequestOptions(path: '/attach'),
+                statusCode: dioStatus,
+              ),
+      );
     }
     capturedWrappedKey = wrappedKey;
   }
@@ -95,6 +105,26 @@ void main() {
       expect(result.isSuccess, isTrue);
       expect(mockDataSource.capturedWrappedKey, 'sealed-blob');
     });
+
+    test(
+      'attachTransfer maps 409 to a safe conflict message',
+      () async {
+        mockDataSource
+          ..shouldThrowDioException = true
+          ..dioStatus = 409;
+        final result = await repository.attachTransfer(
+          sessionId: 'sess_123',
+          transferId: 'tx_555',
+        );
+        expect(result.isFailure, isTrue);
+        expect(result.failure?.message, 'This receiver code is already paired.');
+        expect(result.failure?.message, isNot(contains('DioException')));
+        expect(
+          (result.failure as ServerFailure).statusCode,
+          409,
+        );
+      },
+    );
 
     test(
       'createReceiverSession returns Result.failure on DioException',

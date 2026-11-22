@@ -36,6 +36,30 @@ void main() {
       expect(header!.kind, FrameKind.header);
     });
 
+    test('header and eof carry the absolute file index', () {
+      final header = TransferFramer.parseText(
+        TransferFramer.encodeHeader(
+          const FramedFileMeta(
+            name: 'a.bin',
+            size: 1,
+            index: 3,
+            hasIndex: true,
+          ),
+        ).text!,
+      );
+      expect(header!.meta!.index, 3);
+      expect(header.meta!.hasIndex, isTrue);
+    });
+
+    test('file acknowledgement round-trips the saved index', () {
+      final parsed = TransferFramer.parseText(
+        TransferFramer.encodeFileAck(2).text!,
+      );
+      expect(parsed!.kind, FrameKind.fileAck);
+      expect(parsed.index, 2);
+      expect(TransferFramer.parseText('{"t":"fack","i":99}'), isNull);
+    });
+
     test('done frame signals overall transfer completion', () {
       final done = TransferFramer.encodeDone();
       final parsed = TransferFramer.parseText(done.text!);

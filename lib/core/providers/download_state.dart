@@ -27,6 +27,8 @@ class DownloadState extends Equatable {
   final DownloadPhase phase;
   final List<String> downloadedPaths;
   final String? errorMessage;
+  /// True when the files arrived over the direct P2P channel.
+  final bool direct;
 
   const DownloadState({
     this.transfer,
@@ -39,6 +41,7 @@ class DownloadState extends Equatable {
     this.phase = DownloadPhase.idle,
     this.downloadedPaths = const [],
     this.errorMessage,
+    this.direct = false,
   });
 
   DownloadState copyWith({
@@ -52,6 +55,7 @@ class DownloadState extends Equatable {
     DownloadPhase? phase,
     List<String>? downloadedPaths,
     String? errorMessage,
+    bool? direct,
   }) {
     return DownloadState(
       transfer: transfer ?? this.transfer,
@@ -64,6 +68,7 @@ class DownloadState extends Equatable {
       phase: phase ?? this.phase,
       downloadedPaths: downloadedPaths ?? this.downloadedPaths,
       errorMessage: errorMessage ?? this.errorMessage,
+      direct: direct ?? this.direct,
     );
   }
 
@@ -79,5 +84,6 @@ class DownloadState extends Equatable {
     phase,
     downloadedPaths,
     errorMessage,
+    direct,
   ];
 }

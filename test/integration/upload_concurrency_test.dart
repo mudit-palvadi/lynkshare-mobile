@@ -384,6 +384,8 @@ class _HeldSender implements P2PSenderSession {
   @override
   bool get isOpen => true;
   @override
+  final Set<int> completedIndexes = <int>{};
+  @override
   Future<void> waitUntilOpen({required Duration timeout}) async {}
   @override
   void cancelWait() {}
@@ -396,6 +398,7 @@ class _HeldSender implements P2PSenderSession {
   Future<void> sendFiles(
     List<File> files, {
     List<String>? names,
+    List<int>? indexes,
     void Function(int)? onProgress,
     bool Function()? shouldAbort,
   }) async {
@@ -419,6 +422,7 @@ class _FailedSender extends _HeldSender {
   Future<void> sendFiles(
     List<File> files, {
     List<String>? names,
+    List<int>? indexes,
     void Function(int)? onProgress,
     bool Function()? shouldAbort,
   }) async {

@@ -21,11 +21,19 @@ class FramedFileMeta {
   final String name;
   final int size;
   final String? token;
+  final int index;
+  final bool hasIndex;
 
-  const FramedFileMeta({this.name = '', required this.size, this.token});
+  const FramedFileMeta({
+    this.name = '',
+    required this.size,
+    this.token,
+    this.index = 0,
+    this.hasIndex = false,
+  });
 }
 
-enum FrameKind { header, eof, done, hello, receipt }
+enum FrameKind { header, eof, done, hello, receipt, fileAck }
 
 /// Minimal, stable wire protocol framing file transfers over the binary
 /// DataChannel (POTENTIAL_ISSUES #1: shared contract with the web receiver).
@@ -51,12 +59,18 @@ class TransferFramer {
   static TransferFrame encodeHeader(FramedFileMeta meta) => TransferFrame.text(
     jsonEncode(
       meta.token == null
-          ? {'t': _typeHeader, 'name': meta.name, 'size': meta.size}
+          ? {
+              't': _typeHeader,
+              'name': meta.name,
+              'size': meta.size,
+              if (meta.hasIndex) 'i': meta.index,
+            }
           : {
               't': _typeHeader,
               'v': _sealedVersion,
               'n': meta.token,
               'size': meta.size,
+              if (meta.hasIndex) 'i': meta.index,
             },
     ),
   );
@@ -64,8 +78,17 @@ class TransferFramer {
   static TransferFrame encodeEof(FramedFileMeta meta) => TransferFrame.text(
     jsonEncode(
       meta.token == null
-          ? {'t': _typeEof, 'name': meta.name}
-          : {'t': _typeEof, 'v': _sealedVersion, 'n': meta.token},
+          ? {
+              't': _typeEof,
+              'name': meta.name,
+              if (meta.hasIndex) 'i': meta.index,
+            }
+          : {
+              't': _typeEof,
+              'v': _sealedVersion,
+              'n': meta.token,
+              if (meta.hasIndex) 'i': meta.index,
+            },
     ),
   );
 
@@ -94,6 +117,11 @@ class TransferFramer {
     );
   }
 
+  static TransferFrame encodeFileAck(int index) {
+    if (index < 0 || index >= 10) throw ArgumentError('invalid file ack');
+    return TransferFrame.text(jsonEncode({'t': 'fack', 'i': index}));
+  }
+
   static bool _validReceipt(dynamic files, dynamic bytes) =>
       files is num &&
       files.isFinite &&
@@ -105,6 +133,9 @@ class TransferFramer {
       bytes == bytes.truncateToDouble() &&
       bytes > 0 &&
       bytes <= 9007199254740991;
+
+  static bool _validIndex(dynamic index) =>
+      index is int && index >= 0 && index < 10;
 
   static bool _validDigest(String value) {
     if (value.length != 64) return false;
@@ -131,29 +162,52 @@ class TransferFramer {
       case _typeHeader:
         final size = json['size'];
         final token = json['n'];
+        final hasIndex = _validIndex(json['i']);
+        final index = hasIndex ? json['i'] as int : 0;
         if (token is String && size is int) {
           return ParsedFrame(
             FrameKind.header,
-            FramedFileMeta(size: size, token: token),
+            FramedFileMeta(
+              size: size,
+              token: token,
+              index: index,
+              hasIndex: hasIndex,
+            ),
           );
         }
         final name = json['name'];
         if (name is! String || size is! int) return null;
         return ParsedFrame(
           FrameKind.header,
-          FramedFileMeta(name: name, size: size),
+          FramedFileMeta(
+            name: name,
+            size: size,
+            index: index,
+            hasIndex: hasIndex,
+          ),
         );
       case _typeEof:
         final token = json['n'];
+        final index = _validIndex(json['i']) ? json['i'] as int : 0;
         if (token is String) {
           return ParsedFrame(
             FrameKind.eof,
-            FramedFileMeta(size: 0, token: token),
+            FramedFileMeta(size: 0, token: token, index: index),
           );
         }
         final name = json['name'];
         if (name is! String) return null;
-        return ParsedFrame(FrameKind.eof, FramedFileMeta(name: name, size: 0));
+        return ParsedFrame(
+          FrameKind.eof,
+          FramedFileMeta(name: name, size: 0, index: index),
+        );
+      case 'fack':
+        if (!_validIndex(json['i'])) return null;
+        return ParsedFrame(
+          FrameKind.fileAck,
+          null,
+          index: json['i'] as int,
+        );
       case _typeDone:
         return const ParsedFrame(FrameKind.done, null);
       case _typeHello:
@@ -189,6 +243,7 @@ class ParsedFrame {
   final int version;
   final int? files;
   final int? bytes;
+  final int index;
 
   /// Lowercase sha256 of the ciphertext, when the peer sent one.
   final String? digest;
@@ -201,5 +256,6 @@ class ParsedFrame {
     this.files,
     this.bytes,
     this.digest,
+    this.index = 0,
   });
 }

@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/providers/download_notifier.dart';
 import '../../../../core/providers/download_state.dart';
+import '../../../../core/providers/whats_new_provider.dart';
 import '../../../../core/routing/transfer_route_args.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/permission_helper.dart';
+import '../../../../core/widgets/whats_new_dialog.dart';
 import '../../../file_transfer/presentation/providers/upload_notifier.dart';
 import '../../../file_transfer/presentation/providers/upload_state.dart';
 import '../../../onboarding/presentation/providers/home_tutorial_provider.dart';
@@ -34,8 +36,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         PermissionHelper.requestAllPermissions();
+        _maybeShowWhatsNew();
       }
     });
+  }
+
+  Future<void> _maybeShowWhatsNew() async {
+    try {
+      final check = await ref.read(whatsNewProvider.future);
+      if (!mounted || !check.shouldShow) return;
+      await showDialog<void>(
+        context: context,
+        builder: (_) => WhatsNewDialog(notes: check.notes),
+      );
+      await ref.read(whatsNewProvider.notifier).markSeen(check.buildNumber);
+    } catch (_) {
+      // Release notes are optional and must never interrupt Home.
+    }
   }
 
   void _openUpload() {

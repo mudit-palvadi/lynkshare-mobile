@@ -24,8 +24,8 @@ class TransferAdGate {
   }) : _gate = gate ?? AdGate(),
        _showCloudAd =
            showCloudAd ??
-           (({required void Function() onRewardGranted}) =>
-               AdService.showRewardedAd(onRewardGranted: onRewardGranted)),
+           (({required void Function() onRewardGranted}) => AdService
+               .showRewardedInterstitialAd(onRewardGranted: onRewardGranted)),
        _showP2pAd =
            showP2pAd ??
            (({required void Function() onRewardGranted}) => AdService

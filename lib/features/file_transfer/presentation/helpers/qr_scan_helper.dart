@@ -12,6 +12,10 @@ import '../../../../core/theme/app_theme.dart';
 import '../providers/upload_notifier.dart';
 
 class QrScanHelper {
+  /// One attach per receiver session at a time. A quick double scan must not
+  /// send two writes that can race on the server.
+  static final Set<String> _pairingInFlight = <String>{};
+
   /// Extracts transferId and aesKey from raw URL string.
   static Map<String, String?> extractTransferIdAndKey(String rawValue) {
     final uri = Uri.tryParse(rawValue);
@@ -194,6 +198,27 @@ class QrScanHelper {
   }
 
   static Future<bool> handleReceiveSession({
+    required BuildContext context,
+    required WidgetRef ref,
+    required String sessionId,
+    required String? attachTransferId,
+    String? receiverPk,
+  }) async {
+    if (!_pairingInFlight.add(sessionId)) return false;
+    try {
+      return await _handleReceiveSession(
+        context: context,
+        ref: ref,
+        sessionId: sessionId,
+        attachTransferId: attachTransferId,
+        receiverPk: receiverPk,
+      );
+    } finally {
+      _pairingInFlight.remove(sessionId);
+    }
+  }
+
+  static Future<bool> _handleReceiveSession({
     required BuildContext context,
     required WidgetRef ref,
     required String sessionId,
