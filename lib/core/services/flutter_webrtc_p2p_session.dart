@@ -188,6 +188,9 @@ class WebSocketChannelAdapter implements WebSocketLike {
 abstract class P2PSenderSession {
   bool get isOpen;
 
+  /// Indexes the receiver has acknowledged as saved and verified.
+  Set<int> get completedIndexes;
+
   /// Resolves once the DataChannel is open. Throws [TimeoutException] when
   /// [timeout] elapses first, or [SocketException] on cancel/failure.
   Future<void> waitUntilOpen({required Duration timeout});
@@ -201,6 +204,7 @@ abstract class P2PSenderSession {
   Future<void> sendFiles(
     List<File> files, {
     List<String>? names,
+    List<int>? indexes,
     void Function(int totalBytesSent)? onProgress,
     bool Function()? shouldAbort,
   });
@@ -213,10 +217,14 @@ class ReceivedFile {
   final File file;
   final String name;
   final int expectedSize;
+  final int index;
+  final bool hasIndex;
   const ReceivedFile({
     required this.file,
     required this.name,
     required this.expectedSize,
+    this.index = 0,
+    this.hasIndex = false,
   });
 }
 
@@ -513,6 +521,8 @@ class P2PFileSession implements P2PSenderSession {
   RandomAccessFile? _currentSink;
   String? _currentName;
   String? _currentToken;
+  int _currentIndex = 0;
+  bool _currentHasIndex = false;
   int _currentExpected = 0;
   int _currentWritten = 0;
   Directory? _tempDir;
@@ -707,6 +717,9 @@ class P2PFileSession implements P2PSenderSession {
     if (!_waitCancelled.isCompleted) _waitCancelled.complete();
   }
 
+  @override
+  Set<int> get completedIndexes => _sender.completedIndexes;
+
   /// Streams already-encrypted files over the DataChannel with framing.
   ///
   /// Each file must be the *encrypted* payload (IV-prefixed). Chunks are read
@@ -715,15 +728,22 @@ class P2PFileSession implements P2PSenderSession {
   Future<void> sendFiles(
     List<File> encryptedFiles, {
     List<String>? names,
+    List<int>? indexes,
     void Function(int totalBytesSent)? onProgress,
     bool Function()? shouldAbort,
   }) async {
     await _sender.sendFiles(
       encryptedFiles,
       names: names,
+      indexes: indexes,
       onProgress: onProgress,
       shouldAbort: shouldAbort,
     );
+  }
+
+  /// Tells the sender that one saved, verified file does not need resending.
+  Future<void> confirmFile(int index) async {
+    await peer.sendText(TransferFramer.encodeFileAck(index).text!);
   }
 
   /// Called only after the notifier has decrypted and delivered every file.
@@ -791,6 +811,8 @@ class P2PFileSession implements P2PSenderSession {
         _ensureTempDir();
         _currentName = name;
         _currentToken = meta.token;
+        _currentIndex = meta.index;
+        _currentHasIndex = meta.hasIndex;
         _currentExpected = meta.size;
         _currentWritten = 0;
         _currentInboundFile = File(
@@ -803,6 +825,7 @@ class P2PFileSession implements P2PSenderSession {
         _currentSink = _currentInboundFile!.openSync(mode: FileMode.write);
       case FrameKind.hello:
       case FrameKind.receipt:
+      case FrameKind.fileAck:
         _sender.accept(parsed);
       case FrameKind.eof:
         final meta = parsed.meta!;
@@ -823,6 +846,8 @@ class P2PFileSession implements P2PSenderSession {
                 file: file,
                 name: name,
                 expectedSize: _currentExpected,
+                index: _currentIndex,
+                hasIndex: _currentHasIndex,
               ),
             );
           }

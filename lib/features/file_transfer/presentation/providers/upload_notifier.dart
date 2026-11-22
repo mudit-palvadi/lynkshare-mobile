@@ -597,18 +597,43 @@ class UploadNotifier extends _$UploadNotifier {
       _setStage(P2PSendStage.transferring);
       enteredTransfer = true;
 
-      await session.sendFiles(
-        tempEncrypted,
-        names: [for (final f in selectedFiles) f.name],
-        shouldAbort: () => !_isCurrent(attempt),
-        onProgress: (sent) {
-          if (!_isCurrent(attempt)) return;
-          final pct = totalEncrypted == 0
-              ? 0.0
-              : (sent / totalEncrypted).clamp(0.0, 1.0);
-          state = state.copyWith(overallProgress: pct);
-        },
+      var positions = List<int>.generate(
+        tempEncrypted.length,
+        (index) => index,
       );
+      var resumeAttempts = 0;
+      while (true) {
+        try {
+          await session.sendFiles(
+            [for (final index in positions) tempEncrypted[index]],
+            names: [for (final index in positions) selectedFiles[index].name],
+            indexes: positions,
+            shouldAbort: () => !_isCurrent(attempt),
+            onProgress: (sent) {
+              if (!_isCurrent(attempt)) return;
+              final pct = totalEncrypted == 0
+                  ? 0.0
+                  : (sent / totalEncrypted).clamp(0.0, 1.0);
+              state = state.copyWith(overallProgress: pct);
+            },
+          );
+          break;
+        } catch (e) {
+          final completed = session.completedIndexes;
+          final remaining = positions
+              .where((index) => !completed.contains(index))
+              .toList();
+          if (!session.isOpen ||
+              remaining.isEmpty ||
+              resumeAttempts >= 2 ||
+              !_isCurrent(attempt)) {
+            rethrow;
+          }
+          resumeAttempts++;
+          positions = remaining;
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+        }
+      }
       if (!_isCurrent(attempt)) return false;
 
       _setStage(P2PSendStage.none);

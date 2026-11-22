@@ -21,6 +21,21 @@ enum SenderPairingStatus { idle, waiting, attached, failed }
 /// public key the key is wrapped for it and handed to the backend, which can
 /// never open it.
 class SenderPairing {
+  String _safeError(Object error) {
+    if (error is DioException) {
+      final status = error.response?.statusCode;
+      if (status == 409) {
+        return 'This code is already paired. Send the link instead.';
+      }
+      if (status == 404) {
+        return 'This code has expired. Send the link instead.';
+      }
+      if (status == 401) {
+        return 'This code is no longer valid. Send the link instead.';
+      }
+    }
+    return 'Pairing could not finish. Try again or send the link.';
+  }
   SenderPairing({
     required this.dataSource,
     required this.transferId,
@@ -98,7 +113,7 @@ class SenderPairing {
       status = SenderPairingStatus.waiting;
       return true;
     } catch (e) {
-      error = e.toString();
+      error = _safeError(e);
       status = SenderPairingStatus.failed;
       return false;
     }
@@ -154,7 +169,7 @@ class SenderPairing {
       if (retired()) {
         return false;
       }
-      error = e.toString();
+      error = _safeError(e);
       status = SenderPairingStatus.failed;
       return false;
     }

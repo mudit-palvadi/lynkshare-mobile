@@ -30,16 +30,22 @@ class P2PDeliverySender {
   final Duration helloTimeout;
   final Duration confirmationTimeout;
   final _hello = Completer<ParsedFrame>();
+  final Set<int> _completed = <int>{};
   int? _expectedFiles;
   int? _expectedBytes;
   String? _expectedDigest;
+  bool _prepared = false;
   bool _confirmed = false;
   bool _lost = false;
   bool _sending = false;
 
+  Set<int> get completedIndexes => Set<int>.unmodifiable(_completed);
+
   void accept(ParsedFrame frame) {
     if (frame.kind == FrameKind.hello && !_hello.isCompleted) {
       _hello.complete(frame);
+    } else if (frame.kind == FrameKind.fileAck) {
+      _completed.add(frame.index);
     } else if (frame.kind == FrameKind.receipt &&
         frame.files == _expectedFiles &&
         frame.bytes == _expectedBytes &&
@@ -54,6 +60,7 @@ class P2PDeliverySender {
   Future<void> sendFiles(
     List<File> files, {
     List<String>? names,
+    List<int>? indexes,
     void Function(int)? onProgress,
     bool Function()? shouldAbort,
   }) async {
@@ -61,71 +68,99 @@ class P2PDeliverySender {
     _sending = true;
     if (files.isEmpty ||
         files.length > 10 ||
-        (names != null && names.length != files.length)) {
-      throw ArgumentError('one name is needed for each of 1 to 10 files');
+        (names != null && names.length != files.length) ||
+        (indexes != null && indexes.length != files.length)) {
+      _sending = false;
+      throw ArgumentError('one name and index are needed for each file');
     }
+    final positions =
+        indexes ?? List<int>.generate(files.length, (index) => index);
     bool abort() => _lost || !isOpen() || (shouldAbort?.call() ?? false);
     void check() {
       if (abort()) throw const SocketException('P2P send stopped');
     }
 
-    check();
-    final hello = await _hello.future.timeout(helloTimeout);
-    check();
-    if (!hello.receipts) {
-      throw StateError('peer cannot confirm direct delivery');
-    }
-    var cumulative = 0;
-    final digestOut = _DigestSlot();
-    final digestIn = sha256.startChunkedConversion(digestOut);
-    for (var index = 0; index < files.length; index++) {
+    try {
       check();
-      final file = files[index];
-      final name =
-          names?[index] ?? file.path.split(Platform.pathSeparator).last;
-      final size = await file.length();
-      final token = hello.version >= 2 && aesKey != null
-          ? NameSealer.seal(name, aesKey)
-          : null;
+      final hello = await _hello.future.timeout(helloTimeout);
       check();
-      await sendText(
-        TransferFramer.encodeHeader(
-          FramedFileMeta(name: name, size: size, token: token),
-        ).text!,
-      );
-      final chunks = ChunkSender(
-        bufferedAmount: bufferedAmount,
-        send: sendBinary,
-        shouldAbort: abort,
-        onProgress: (sent) => onProgress?.call(cumulative + sent),
-      );
-      await for (final bytes in file.openRead()) {
-        final chunk = Uint8List.fromList(bytes);
-        digestIn.add(chunk);
-        await chunks.sendAll(chunk);
+      if (!hello.receipts) {
+        throw StateError('peer cannot confirm direct delivery');
       }
-      cumulative += size;
-      check();
-      await sendText(
-        TransferFramer.encodeEof(
-          FramedFileMeta(name: name, size: 0, token: token),
-        ).text!,
-      );
-    }
-    digestIn.close();
-    _expectedFiles = files.length;
-    _expectedBytes = cumulative;
-    _expectedDigest = digestOut.value.toString();
-    await sendText(TransferFramer.encodeDone().text!);
-    final elapsed = Stopwatch()..start();
-    while (!_confirmed) {
-      check();
-      if (elapsed.elapsed >= confirmationTimeout) {
-        throw TimeoutException('receiver did not confirm direct delivery');
+      if (!_prepared) {
+        var total = 0;
+        final digestOut = _DigestSlot();
+        final digestIn = sha256.startChunkedConversion(digestOut);
+        for (final file in files) {
+          await for (final bytes in file.openRead()) {
+            digestIn.add(bytes);
+            total += bytes.length;
+          }
+        }
+        digestIn.close();
+        _expectedFiles = files.length;
+        _expectedBytes = total;
+        _expectedDigest = digestOut.value.toString();
+        _prepared = true;
       }
-      // Keep the native channel alive until the receiver confirms delivery.
-      // bufferedAmount == 0 alone is never a delivery acknowledgement.
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      var cumulative = 0;
+      for (var index = 0; index < files.length; index++) {
+        check();
+        final file = files[index];
+        final name =
+            names?[index] ?? file.path.split(Platform.pathSeparator).last;
+        final size = await file.length();
+        final token = hello.version >= 2 && aesKey != null
+            ? NameSealer.seal(name, aesKey)
+            : null;
+        check();
+        await sendText(
+          TransferFramer.encodeHeader(
+            FramedFileMeta(
+              name: name,
+              size: size,
+              token: token,
+              index: positions[index],
+              hasIndex: true,
+            ),
+          ).text!,
+        );
+        final chunks = ChunkSender(
+          bufferedAmount: bufferedAmount,
+          send: sendBinary,
+          shouldAbort: abort,
+          onProgress: (sent) => onProgress?.call(cumulative + sent),
+        );
+        await for (final bytes in file.openRead()) {
+          await chunks.sendAll(Uint8List.fromList(bytes));
+        }
+        cumulative += size;
+        check();
+        await sendText(
+          TransferFramer.encodeEof(
+            FramedFileMeta(
+              name: name,
+              size: 0,
+              token: token,
+              index: positions[index],
+              hasIndex: true,
+            ),
+          ).text!,
+        );
+      }
+      await sendText(TransferFramer.encodeDone().text!);
+      final elapsed = Stopwatch()..start();
+      while (!_confirmed) {
+        check();
+        if (elapsed.elapsed >= confirmationTimeout) {
+          throw TimeoutException('receiver did not confirm direct delivery');
+        }
+        // Keep the native channel alive until the receiver confirms delivery.
+        // bufferedAmount == 0 alone is never a delivery acknowledgement.
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+    } finally {
+      _sending = false;
     }
   }
 }

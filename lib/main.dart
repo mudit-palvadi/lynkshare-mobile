@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_mode_provider.dart';
-import 'core/widgets/app_update_gate.dart';
 import 'core/widgets/ad_consent_gate.dart';
 import 'features/onboarding/presentation/providers/onboarding_provider.dart';
 
@@ -85,7 +84,7 @@ class LynkApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) =>
-      const AppUpdateGate(child: AdConsentGate(child: _RoutedApp()));
+      const AdConsentGate(child: _RoutedApp());
 }
 
 class _RoutedApp extends ConsumerWidget {

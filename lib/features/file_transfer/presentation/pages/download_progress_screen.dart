@@ -196,13 +196,26 @@ class _DownloadProgressScreenState
                           color: AppTheme.of(context).secondary,
                         ),
                         const SizedBox(height: 16),
-                        const Text(
-                          'Download Complete!',
-                          style: TextStyle(
+                        Text(
+                          state.direct
+                              ? 'Transfer completed successfully'
+                              : 'Download Complete!',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                        if (state.direct) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            'All files were received and verified.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: AppTheme.of(context).textSecondary,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         Expanded(
                           child: ListView.builder(
@@ -233,7 +246,7 @@ class _DownloadProgressScreenState
                         ),
                         ElevatedButton(
                           onPressed: () => context.go('/home'),
-                          child: const Text('Done'),
+                          child: const Text('Back to Home'),
                         ),
                       ],
                     ),

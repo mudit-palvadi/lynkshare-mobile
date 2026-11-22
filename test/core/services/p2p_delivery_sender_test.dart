@@ -25,6 +25,22 @@ void main() {
     await sandbox.delete(recursive: true);
   });
 
+  test('file acknowledgements mark only the saved indexes', () {
+    final sender = P2PDeliverySender(
+      bufferedAmount: () => 0,
+      isOpen: () => true,
+      sendBinary: (_) async {},
+      sendText: (_) async {},
+    );
+    sender.accept(
+      TransferFramer.parseText(TransferFramer.encodeFileAck(0).text!)!,
+    );
+    sender.accept(
+      TransferFramer.parseText(TransferFramer.encodeFileAck(2).text!)!,
+    );
+    expect(sender.completedIndexes, <int>{0, 2});
+  });
+
   test(
     'only a matching post-done receipt completes a real encrypted send',
     () async {

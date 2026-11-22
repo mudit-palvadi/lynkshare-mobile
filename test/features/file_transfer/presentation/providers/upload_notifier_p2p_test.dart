@@ -138,6 +138,11 @@ class FakeSenderSession implements P2PSenderSession {
   List<String>? lastNames;
   bool waitCancelled = false;
   bool failSend = false;
+  int failOnCall = 0;
+  Set<int> completeBeforeFail = <int>{};
+  List<int>? lastIndexes;
+  @override
+  final Set<int> completedIndexes = <int>{};
 
   /// Called at the start of [sendFiles], so a test can change the app state
   /// while the transfer is in flight.
@@ -146,7 +151,7 @@ class FakeSenderSession implements P2PSenderSession {
   final _cancelled = Completer<void>();
 
   @override
-  bool get isOpen => false;
+  bool get isOpen => !failWaitInstead && !disposed;
 
   @override
   Future<void> waitUntilOpen({required Duration timeout}) async {
@@ -168,13 +173,19 @@ class FakeSenderSession implements P2PSenderSession {
   Future<void> sendFiles(
     List<File> files, {
     List<String>? names,
+    List<int>? indexes,
     void Function(int totalBytesSent)? onProgress,
     bool Function()? shouldAbort,
   }) async {
     sendCalls++;
     lastFiles = files;
     lastNames = names;
+    lastIndexes = indexes;
     onSend?.call();
+    if (failOnCall == sendCalls) {
+      completedIndexes.addAll(completeBeforeFail);
+      throw const SocketException('channel died mid-transfer');
+    }
     if (failSend) {
       throw const SocketException('channel died mid-transfer');
     }
@@ -294,6 +305,37 @@ void main() {
       ]);
       expect(fakeSession.sendCalls, 1);
       expect(fakeSession.disposed, isTrue);
+    });
+
+    test('a retry resumes only files the receiver acknowledged', () async {
+      fakeSession
+        ..failOnCall = 1
+        ..completeBeforeFail = <int>{0};
+      final container = await makeContainer();
+      final notifier = container.read(uploadProvider.notifier);
+      notifier.setTransferMode(TransferMode.p2p);
+
+      final srcA = tempFileOf('a.bin', 32);
+      final srcB = tempFileOf('b.bin', 32);
+      addTearDown(() {
+        srcA.deleteSync();
+        srcB.deleteSync();
+      });
+      notifier.setFilesForTesting([
+        PlatformFile(name: 'a.bin', size: srcA.lengthSync(), path: srcA.path),
+        PlatformFile(name: 'b.bin', size: srcB.lengthSync(), path: srcB.path),
+      ]);
+
+      final ok = await notifier.runP2PSession(
+        sessionId: 'room-1',
+        aesKey: 'k' * 32,
+      );
+
+      expect(ok, isTrue);
+      expect(fakeSession.sendCalls, 2);
+      expect(fakeSession.lastIndexes, <int>[1]);
+      expect(fakeSession.lastFiles!.length, 1);
+      expect(fakeSession.lastNames, <String>['b.bin']);
     });
 
     test(
