@@ -187,6 +187,108 @@ void main() {
         },
       );
 
+      test(
+        'cloud total above 30 MB is rejected without an ad prompt',
+        () async {
+          final container = makeContainer();
+          addTearDown(container.dispose);
+
+          fakePicker.nextResult = FilePickerResult([
+            fileOf('huge.bin', 36 * mb),
+          ]);
+
+          final notifier = container.read(uploadProvider.notifier);
+          await notifier.pickFiles();
+
+          final state = container.read(uploadProvider);
+          expect(state.phase, UploadPhase.failed);
+          expect(state.errorMessage, contains('maximum size limit'));
+          expect(state.errorMessage, isNot(contains('Watch an ad')));
+          expect(notifier.hasRejectedFiles, isFalse);
+          expect(notifier.retryRejectedSelection(), isFalse);
+        },
+      );
+
+      test(
+        'cloud total exactly at 30 MB still offers the unlock ad',
+        () async {
+          final container = makeContainer();
+          addTearDown(container.dispose);
+
+          fakePicker.nextResult = FilePickerResult([
+            fileOf('edge.bin', 30 * mb),
+          ]);
+
+          final notifier = container.read(uploadProvider.notifier);
+          await notifier.pickFiles();
+
+          final state = container.read(uploadProvider);
+          expect(state.phase, UploadPhase.failed);
+          expect(state.errorMessage, contains('Watch an ad'));
+        },
+      );
+
+      test(
+        'cloud unlocked total above 30 MB is rejected without an ad prompt',
+        () async {
+          final container = makeContainer();
+          addTearDown(container.dispose);
+
+          final notifier = container.read(uploadProvider.notifier);
+          notifier.unlockExtendedSizeLimit();
+          fakePicker.nextResult = FilePickerResult([
+            fileOf('huge.bin', 31 * mb),
+          ]);
+          await notifier.pickFiles();
+
+          final state = container.read(uploadProvider);
+          expect(state.phase, UploadPhase.failed);
+          expect(state.errorMessage, 'Total transfer limit is 30 MB');
+          expect(notifier.hasRejectedFiles, isFalse);
+        },
+      );
+
+      test(
+        'multiple files above the extended total are rejected without an ad',
+        () async {
+          final container = makeContainer();
+          addTearDown(container.dispose);
+
+          fakePicker.nextResult = FilePickerResult([
+            fileOf('a.bin', 20 * mb),
+            fileOf('b.bin', 11 * mb),
+          ]);
+
+          final notifier = container.read(uploadProvider.notifier);
+          await notifier.pickFiles();
+
+          final state = container.read(uploadProvider);
+          expect(state.phase, UploadPhase.failed);
+          expect(state.errorMessage, contains('maximum size limit'));
+          expect(state.errorMessage, isNot(contains('Watch an ad')));
+        },
+      );
+
+      test(
+        'p2p total above 50 MB is rejected without an ad prompt',
+        () async {
+          final container = makeContainer();
+          addTearDown(container.dispose);
+
+          final notifier = container.read(uploadProvider.notifier);
+          notifier.setTransferMode(TransferMode.p2p);
+          fakePicker.nextResult = FilePickerResult([
+            fileOf('huge.mp4', 51 * mb),
+          ]);
+          await notifier.pickFiles();
+
+          final state = container.read(uploadProvider);
+          expect(state.phase, UploadPhase.failed);
+          expect(state.errorMessage, contains('maximum size limit'));
+          expect(state.errorMessage, isNot(contains('Watch an ad')));
+        },
+      );
+
       test('cloud unlocked tier: up to 30 MB total is accepted', () async {
         final container = makeContainer();
         addTearDown(container.dispose);

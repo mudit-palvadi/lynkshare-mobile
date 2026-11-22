@@ -104,7 +104,9 @@ class UploadNotifier extends _$UploadNotifier {
             : null);
 
     if (error != null) {
-      _rejectedBatch = picked;
+      _rejectedBatch = error.contains('Watch an ad to unlock')
+          ? picked
+          : const [];
       _rejectSelection(error);
       return;
     }
@@ -159,13 +161,20 @@ class UploadNotifier extends _$UploadNotifier {
     final unlockedMb = state.maxTotalSizeUnlockedMb;
     final freeMb = state.maxTotalSizeFreeMb;
 
-    if (totalSize > maxLimit) {
-      return state.isSizeLimitUnlocked
-          ? 'Total transfer limit is $maxMb MB'
-          : 'Free limit is $freeMb MB total. Watch an ad to unlock up to $unlockedMb MB total!';
+    if (totalSize <= maxLimit) return null;
+
+    if (state.isSizeLimitUnlocked) {
+      return 'Total transfer limit is $maxMb MB';
     }
 
-    return null;
+    if (totalSize <= state.maxTotalSizeUnlocked) {
+      return 'Free limit is $freeMb MB total. '
+          'Watch an ad to unlock up to $unlockedMb MB total!';
+    }
+
+    return 'File exceeds the maximum size limit. '
+        'This selection is larger than the maximum supported size, even '
+        'with the extended limit. The files cannot be transferred.';
   }
 
   void setTransferMode(TransferMode mode) {
