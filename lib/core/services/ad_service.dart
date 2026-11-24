@@ -16,11 +16,9 @@ class AdService {
     _canRequestAds = eligible;
     if (eligible) return;
     _consentGeneration++;
-    final ads = [_interstitialAd, _rewardedAd, _rewardedInterstitialAd];
-    _interstitialAd = null;
+    final ads = [_rewardedAd, _rewardedInterstitialAd];
     _rewardedAd = null;
     _rewardedInterstitialAd = null;
-    _isInterstitialLoading = false;
     _isRewardedLoading = false;
     _isRewardedInterstitialLoading = false;
     for (final ad in ads) {
@@ -32,18 +30,14 @@ class AdService {
     }
   }
 
-  static InterstitialAd? _interstitialAd;
   static RewardedAd? _rewardedAd;
   static RewardedInterstitialAd? _rewardedInterstitialAd;
 
-  static bool _isInterstitialLoading = false;
   static bool _isRewardedLoading = false;
   static bool _isRewardedInterstitialLoading = false;
 
   /// Default Google Test Ad Unit IDs
   static const String _testBannerId = 'ca-app-pub-3940256099942544/6300978111';
-  static const String _testInterstitialId =
-      'ca-app-pub-3940256099942544/1033173712';
   static const String _testRewardedId =
       'ca-app-pub-3940256099942544/5224354917';
   static const String _testRewardedInterstitialId =
@@ -73,7 +67,6 @@ class AdService {
   static bool get hasRealAdUnits {
     if (!kReleaseMode) return true;
     return _envAdUnit('ADMOB_BANNER_ID') != null &&
-        _envAdUnit('ADMOB_INTERSTITIAL_ID') != null &&
         _envAdUnit('ADMOB_REWARDED_ID') != null &&
         _envAdUnit('ADMOB_REWARDED_INTERSTITIAL_ID') != null;
   }
@@ -81,11 +74,6 @@ class AdService {
   static String get bannerAdUnitId {
     if (!kReleaseMode) return _testBannerId;
     return _envAdUnit('ADMOB_BANNER_ID') ?? '';
-  }
-
-  static String get interstitialAdUnitId {
-    if (!kReleaseMode) return _testInterstitialId;
-    return _envAdUnit('ADMOB_INTERSTITIAL_ID') ?? '';
   }
 
   static String get rewardedAdUnitId {
@@ -130,60 +118,6 @@ class AdService {
     if (!hasRealAdUnits) return false;
     final prefs = await SharedPreferences.getInstance();
     return _canRequestAds && (prefs.getBool('ads_enabled') ?? true);
-  }
-
-  static Future<void> preloadInterstitialAd() async {
-    final generation = _consentGeneration;
-    if (kIsWeb || !await shouldShowAds() || _interstitialAd != null) return;
-    if (!_canRequestAds || generation != _consentGeneration) return;
-    if (_isInterstitialLoading) return;
-
-    _isInterstitialLoading = true;
-    try {
-      await InterstitialAd.load(
-        adUnitId: interstitialAdUnitId,
-        request: const AdRequest(),
-        adLoadCallback: InterstitialAdLoadCallback(
-          onAdLoaded: (ad) {
-            if (!_canRequestAds || generation != _consentGeneration) {
-              ad.dispose();
-              return;
-            }
-            _interstitialAd = ad;
-            _isInterstitialLoading = false;
-          },
-          onAdFailedToLoad: (error) {
-            if (generation != _consentGeneration) return;
-            _interstitialAd = null;
-            _isInterstitialLoading = false;
-          },
-        ),
-      );
-    } catch (e) {
-      if (generation == _consentGeneration) _isInterstitialLoading = false;
-    }
-  }
-
-  static Future<void> showInterstitialAd() async {
-    if (kIsWeb || !await shouldShowAds()) return;
-    if (_interstitialAd == null) await preloadInterstitialAd();
-
-    if (!await shouldShowAds()) return;
-    final adToShow = _interstitialAd;
-    if (adToShow != null && _canRequestAds) {
-      _interstitialAd = null;
-      adToShow.fullScreenContentCallback = FullScreenContentCallback(
-        onAdDismissedFullScreenContent: (ad) {
-          ad.dispose();
-          preloadInterstitialAd();
-        },
-        onAdFailedToShowFullScreenContent: (ad, error) {
-          ad.dispose();
-          preloadInterstitialAd();
-        },
-      );
-      await adToShow.show();
-    }
   }
 
   /// Loads a Rewarded Video Ad.

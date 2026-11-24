@@ -293,7 +293,7 @@ class DownloadNotifier extends _$DownloadNotifier {
       if (stopped()) return;
 
       final item = downloadFiles[i];
-      state = state.copyWith(currentFileIndex: i, currentFileProgress: 0.0);
+      state = state.copyWith(currentFileIndex: i);
 
       try {
         if (kIsWeb) {
@@ -302,12 +302,10 @@ class DownloadNotifier extends _$DownloadNotifier {
             cancelToken: token,
             onProgress: (received, total) {
               if (stopped()) return;
-              final fileProgress = total > 0 ? received / total : 0.0;
               final overall = totalSize > 0
                   ? (cumulativeBytes + received) / totalSize
                   : 0.0;
               state = state.copyWith(
-                currentFileProgress: fileProgress,
                 overallProgress: overall.clamp(0.0, 1.0),
               );
             },
@@ -338,12 +336,10 @@ class DownloadNotifier extends _$DownloadNotifier {
             cancelToken: token,
             onProgress: (received, total) {
               if (stopped()) return;
-              final fileProgress = total > 0 ? received / total : 0.0;
               final overall = totalSize > 0
                   ? (cumulativeBytes + received) / totalSize
                   : 0.0;
               state = state.copyWith(
-                currentFileProgress: fileProgress,
                 overallProgress: overall.clamp(0.0, 1.0),
               );
             },
@@ -670,7 +666,6 @@ class DownloadNotifier extends _$DownloadNotifier {
           deliveredBytes += current.expectedSize;
           state = state.copyWith(
             currentFileIndex: filesDone - 1,
-            currentFileProgress: 1.0,
             overallProgress: (filesDone / expectedFiles).clamp(0.0, 1.0),
           );
           completeWhenDelivered();

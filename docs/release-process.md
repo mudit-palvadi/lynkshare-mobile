@@ -26,10 +26,10 @@ The existing package, upload keystore and Play listing remain unchanged.
   permission to release to testing tracks; never commit its JSON credentials.
 - `API_BASE_URL`, `PRIVACY_POLICY_URL` and `DEEP_LINK_BASE_URL` come from
   `lynk_config`. Do not put the debug bypass key in release configuration.
-- Five public AdMob identifiers are configured in `codemagic.yaml`:
-  `ADMOB_APP_ID`, `ADMOB_BANNER_ID`, `ADMOB_INTERSTITIAL_ID`, `ADMOB_REWARDED_ID`
-  and `ADMOB_REWARDED_INTERSTITIAL_ID`. Environment overrides must also contain
-  all five correctly formatted, non-sample IDs from the same publisher.
+- Four public AdMob identifiers are configured in `codemagic.yaml`:
+  `ADMOB_APP_ID`, `ADMOB_BANNER_ID`, `ADMOB_REWARDED_ID` and
+  `ADMOB_REWARDED_INTERSTITIAL_ID`. Environment overrides must also contain
+  all four correctly formatted, non-sample IDs from the same publisher.
 - Remove any stale `GOOGLE_PLAY_TRACK` override, or set it to `beta`. Other values
   fail the preflight, including `alpha` and `production`.
 - A release cannot fall back to Google sample IDs or debug signing. Gradle
@@ -102,7 +102,7 @@ needs its own baseline; Shorebird patch numbers are not Play versionCodes.
    ```
 
    Check cold/warm links, Cloud/Direct transfers, active-transfer continuity,
-   consent, themes and the Play update gate. CI mocks do not replace device QA.
+   consent and themes. CI mocks do not replace device QA.
 
 ## Explicit promotion and rollback
 

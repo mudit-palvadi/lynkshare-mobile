@@ -32,7 +32,6 @@ workflows:
       vars: &public_config
         ADMOB_APP_ID: ca-app-pub-9472143004063972~5082510676
         ADMOB_BANNER_ID: ca-app-pub-9472143004063972/3345777238
-        ADMOB_INTERSTITIAL_ID: ca-app-pub-9472143004063972/9528042202
         ADMOB_REWARDED_ID: ca-app-pub-9472143004063972/1768498260
         ADMOB_REWARDED_INTERSTITIAL_ID: ca-app-pub-9472143004063972/5516171584
       groups:
@@ -57,7 +56,7 @@ workflows:
             exit 1
           fi
           expected_publisher=''
-          for var in ADMOB_APP_ID ADMOB_BANNER_ID ADMOB_INTERSTITIAL_ID ADMOB_REWARDED_ID ADMOB_REWARDED_INTERSTITIAL_ID; do
+          for var in ADMOB_APP_ID ADMOB_BANNER_ID ADMOB_REWARDED_ID ADMOB_REWARDED_INTERSTITIAL_ID; do
             value="$(printenv "$var" || true)"
             separator=/
             if [ "$var" = ADMOB_APP_ID ]; then separator='~'; fi
@@ -81,7 +80,6 @@ workflows:
           {
             echo "export ADMOB_APP_ID=\"$ADMOB_APP_ID\""
             echo "export ADMOB_BANNER_ID=\"$ADMOB_BANNER_ID\""
-            echo "export ADMOB_INTERSTITIAL_ID=\"$ADMOB_INTERSTITIAL_ID\""
             echo "export ADMOB_REWARDED_ID=\"$ADMOB_REWARDED_ID\""
             echo "export ADMOB_REWARDED_INTERSTITIAL_ID=\"$ADMOB_REWARDED_INTERSTITIAL_ID\""
             echo "export ORG_GRADLE_PROJECT_admobAppId=\"$ADMOB_APP_ID\""
@@ -100,7 +98,6 @@ workflows:
           DEEP_LINK_BASE_URL=$DEEP_LINK_BASE_URL
           ADMOB_APP_ID=$ADMOB_APP_ID
           ADMOB_BANNER_ID=$ADMOB_BANNER_ID
-          ADMOB_INTERSTITIAL_ID=$ADMOB_INTERSTITIAL_ID
           ADMOB_REWARDED_ID=$ADMOB_REWARDED_ID
           ADMOB_REWARDED_INTERSTITIAL_ID=$ADMOB_REWARDED_INTERSTITIAL_ID
           EOF

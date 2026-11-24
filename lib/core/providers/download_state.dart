@@ -22,7 +22,6 @@ class DownloadState extends Equatable {
   final String? aesKey;
   final String? accessToken;
   final int currentFileIndex;
-  final double currentFileProgress;
   final double overallProgress;
   final DownloadPhase phase;
   final List<String> downloadedPaths;
@@ -36,7 +35,6 @@ class DownloadState extends Equatable {
     this.aesKey,
     this.accessToken,
     this.currentFileIndex = 0,
-    this.currentFileProgress = 0.0,
     this.overallProgress = 0.0,
     this.phase = DownloadPhase.idle,
     this.downloadedPaths = const [],
@@ -50,7 +48,6 @@ class DownloadState extends Equatable {
     String? aesKey,
     String? accessToken,
     int? currentFileIndex,
-    double? currentFileProgress,
     double? overallProgress,
     DownloadPhase? phase,
     List<String>? downloadedPaths,
@@ -63,7 +60,6 @@ class DownloadState extends Equatable {
       aesKey: aesKey ?? this.aesKey,
       accessToken: accessToken ?? this.accessToken,
       currentFileIndex: currentFileIndex ?? this.currentFileIndex,
-      currentFileProgress: currentFileProgress ?? this.currentFileProgress,
       overallProgress: overallProgress ?? this.overallProgress,
       phase: phase ?? this.phase,
       downloadedPaths: downloadedPaths ?? this.downloadedPaths,
@@ -79,7 +75,6 @@ class DownloadState extends Equatable {
     aesKey,
     accessToken,
     currentFileIndex,
-    currentFileProgress,
     overallProgress,
     phase,
     downloadedPaths,
