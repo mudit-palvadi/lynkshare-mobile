@@ -18,9 +18,6 @@ import 'webrtc_peer.dart';
 import 'webrtc_service.dart';
 import '../utils/file_name_sanitizer.dart';
 
-/// Legacy alias kept for callers that only need STUN.
-const List<Map<String, String>> kLynkIceServers = kStunServers;
-
 /// The most a peer may send in one transfer.
 ///
 /// The largest device-to-device transfer the app offers is the unlocked

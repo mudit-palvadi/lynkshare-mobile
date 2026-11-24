@@ -242,7 +242,6 @@ class UploadNotifier extends _$UploadNotifier {
 
     state = state.copyWith(
       phase: UploadPhase.uploading,
-      currentFileIndex: 0,
       overallProgress: 0.0,
     );
 
@@ -350,8 +349,6 @@ class UploadNotifier extends _$UploadNotifier {
         final pFile = selectedFiles[i];
         final item = transfer.files[i];
 
-        state = state.copyWith(currentFileIndex: i, currentFileProgress: 0.0);
-
         try {
           File? encryptedFile;
           Uint8List? encryptedBytes;
@@ -385,10 +382,8 @@ class UploadNotifier extends _$UploadNotifier {
             cancelToken: attempt.token,
             onProgress: (sent, total) {
               if (!_isCurrent(attempt)) return;
-              final fileProgress = sent / total;
               final currentOverall = (cumulativeBytes + sent) / totalSize;
               state = state.copyWith(
-                currentFileProgress: fileProgress,
                 overallProgress: currentOverall.clamp(0.0, 1.0),
               );
             },

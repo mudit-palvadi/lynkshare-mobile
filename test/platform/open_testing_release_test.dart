@@ -14,7 +14,6 @@ void main() {
   const names = [
     'ADMOB_APP_ID',
     'ADMOB_BANNER_ID',
-    'ADMOB_INTERSTITIAL_ID',
     'ADMOB_REWARDED_ID',
     'ADMOB_REWARDED_INTERSTITIAL_ID',
   ];
@@ -135,7 +134,6 @@ void main() {
       for (final id in [
         'ca-app-pub-9472143004063972~5082510676',
         'ca-app-pub-9472143004063972/3345777238',
-        'ca-app-pub-9472143004063972/9528042202',
         'ca-app-pub-9472143004063972/1768498260',
         'ca-app-pub-9472143004063972/5516171584',
       ]) {

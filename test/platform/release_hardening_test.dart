@@ -130,7 +130,6 @@ void main() {
       for (final variable in const [
         'ADMOB_APP_ID',
         'ADMOB_BANNER_ID',
-        'ADMOB_INTERSTITIAL_ID',
         'ADMOB_REWARDED_ID',
         'ADMOB_REWARDED_INTERSTITIAL_ID',
       ]) {

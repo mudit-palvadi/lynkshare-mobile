@@ -170,13 +170,12 @@ class RemoteCandidateQueue {
   }
 }
 
-/// Connection lifecycle controller with the 8-second P2P timeout contract.
+/// Connection lifecycle controller with the 30-second P2P timeout contract.
 ///
 /// If the DataChannel has not connected within [connectTimeout], the state
 /// transitions to [SignalingMessageType.failed] and [onP2PFailed] fires once
 /// so the caller can fall back to the R2 cloud pipeline.
 class P2PConnectionController {
-  /// Per Phases.md: 8 seconds from connection initiation.
   // A phone that opens the app from a QR code is cold-starting, so the
   // handshake needs more room than the old eight seconds.
   static const Duration defaultTimeout = Duration(seconds: 30);

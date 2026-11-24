@@ -36,7 +36,8 @@ class TransferAdGate {
   final AutomaticAdShower _showP2pAd;
 
   /// Runs [onAllowed] now when the free window is open, otherwise after the
-  /// cloud (rewarded video) or P2P (rewarded interstitial) ad.
+  /// rewarded interstitial ad. Cloud and P2P both use the rewarded
+  /// interstitial; the two hooks stay separate so callers can diverge.
   Future<void> start({
     required bool p2p,
     bool sizeUnlockAlreadyPaid = false,

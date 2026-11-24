@@ -19,19 +19,3 @@ class ServerFailure extends Failure {
 class NetworkFailure extends Failure {
   const NetworkFailure(super.message);
 }
-
-class R2Failure extends Failure {
-  const R2Failure(super.message);
-}
-
-class StorageFailure extends Failure {
-  const StorageFailure(super.message);
-}
-
-class QRValidationFailure extends Failure {
-  const QRValidationFailure(super.message);
-}
-
-class ExpirationFailure extends Failure {
-  const ExpirationFailure(super.message);
-}

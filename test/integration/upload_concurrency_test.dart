@@ -77,7 +77,6 @@ void main() {
             expect(uploading.phase, UploadPhase.uploading);
             expect(uploading.p2pStage, P2PSendStage.none);
             expect(uploading.overallProgress, 0);
-            expect(uploading.currentFileProgress, 0);
             expect(uploading.errorMessage, isNull);
             expect(
               states.where((state) => state.phase == UploadPhase.failed),

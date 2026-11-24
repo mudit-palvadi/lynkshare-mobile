@@ -34,12 +34,6 @@ class DownloadFolderService {
     return picked;
   }
 
-  /// Forgets the chosen folder, so downloads go back to app storage.
-  Future<void> forget() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_treeKey);
-  }
-
   /// Copies [sourcePath] into the chosen folder.
   ///
   /// Returns the new document URI, or null when no folder has been chosen.

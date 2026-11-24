@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/ad_consent_provider.dart';
 
-/// Consent is requested only after the Play update gate admits the app and an
-/// activity is mounted. Consent never blocks file-transfer navigation.
+/// Consent is requested after an activity is mounted. Consent never blocks
+/// file-transfer navigation.
 class AdConsentGate extends ConsumerStatefulWidget {
   const AdConsentGate({required this.child, super.key});
 
